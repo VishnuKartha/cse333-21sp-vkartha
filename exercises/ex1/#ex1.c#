@@ -1,0 +1,56 @@
+/*
+ Copyright 2021 Vishnu Kartha
+ Author: Vishnu Kartha
+ CSE Email: vkartha@cs.washington.edu
+ Student #: 1873639
+*/
+#include <ctype.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <string.h>
+#include <stdlib.h>
+bool isNonNegativeInteger(char[], int);
+
+int main(int argc, char* argv[]) {
+   int n;
+   // bool validInput = true;
+   //if(!(argc == 2 && n >= 0)) {
+   //validInput = false;
+    //{
+   if(isNonNegativeInteger(argv[1],strlen(argv[1]))){
+    sscanf(argv[1],"%i\n", &n);
+    printf("Our estimate of Pi is ");
+    double result = 3;
+    bool negative = false;
+    for(int i = 1; i <= n; i++) {
+      double newTerm =(4.0 / (2.0 * (double)i * (2.0 * (double)i + 1.0) * (2.0 * (double)i + 2.0)));
+      if(negative){
+	newTerm *= -1;
+      }
+      negative = !negative;
+      result =  result + newTerm;   
+   }
+    printf("%.20lf\n",result);
+  } else {
+    printf("Error: Program requires a single non-negative argument\n");  
+  }
+}
+
+bool isNonNegativeInteger(char str[],int len) {
+  printf("HI!");
+  if(len <=0) {
+    printf("len %d\n",len);
+    return false;
+  } else {
+    for(int i = 0; i < len; i++) {
+      if(!isdigit(atoi(&str[i]))){
+
+	printf("len %d\n",len);	return false;
+      }
+      printf("%c\n",str[i]);
+    }
+    return true;
+  } 
+}  
+
+ 
