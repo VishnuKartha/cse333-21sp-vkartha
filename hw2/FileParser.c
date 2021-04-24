@@ -70,13 +70,9 @@ char *ReadFileToString(const char *file_name, int *size) {
   // properties of the file. ("man 2 stat"). You can assume we're on a 64-bit
   // system, with a 64-bit off_t field.
   result = stat(file_name, &file_stat);  
-  if(result == -1){
+  if (result == -1){
     return NULL;
   }
-  
-
-
-
 
   // STEP 2.
   // Make sure this is a "regular file" and not a directory or something else
@@ -84,27 +80,21 @@ char *ReadFileToString(const char *file_name, int *size) {
   if (!S_ISREG(file_stat.st_mode)) { //irregular file
     return NULL;
   }
-    /* Handle regular file */
-
 
   // STEP 3.
   // Attempt to open the file for reading (see also "man 2 open").
-  fd = open(file_name,O_RDONLY);
+  fd = open(file_name, O_RDONLY);
   if(fd == -1) {
     return NULL;
   }
-
-
 
   // STEP 4.
   // Allocate space for the file, plus 1 extra byte to
   // '\0'-terminate the string.
   buf = (char*)malloc(file_stat.st_size + 1);
-  if(buf == NULL) {
+  if (buf == NULL) {
     return NULL;
   }
-
-
 
   // STEP 5.
   // Read in the file contents using the read() system call (see also
@@ -127,8 +117,8 @@ char *ReadFileToString(const char *file_name, int *size) {
     // EINTR happened, so do nothing and try again
     continue;
     } else if (num_read == 0) {
-    // EOF reached, so stop reading
-    break;
+      // EOF reached, so stop reading
+      break;
     }
     left_to_read -= num_read;
   }
@@ -231,9 +221,27 @@ static void InsertContent(HashTable *tab, char *content) {
   // AddWordPosition() helper with appropriate arguments, e.g.,
   //    AddWordPosition(tab, wordstart, pos);
 
-  while (1) {
-    break;  // you may want to change this
-  }  // end while-loop
+  char *content_start = content;
+  bool in_word = isalpha(content[0]);
+  while (*cur_ptr != '\0') {
+    if (isalpha(*cur_ptr)) {
+      if (!in_word) {
+        // A new word starts here.
+        word_start = cur_ptr;
+        in_word = true;
+      }
+      // Make sure every alphabetic character is lowercase.
+      *cur_ptr = tolower(*cur_ptr);
+    } else {
+      if (in_word) {
+        // The current word ends here.
+        *cur_ptr = '\0';
+        AddWordPosition(tab, word_start, word_start - content_start);
+        in_word = false;
+      }
+    }
+    cur_ptr++;
+  }
 }
 
 static void AddWordPosition(HashTable *tab, char *word,
@@ -264,5 +272,27 @@ static void AddWordPosition(HashTable *tab, char *word,
     // No; this is the first time we've seen this word.  Allocate and prepare
     // a new WordPositions structure, and append the new position to its list
     // using a similar ugly hack as right above.
+
+    // Allocate new WordPositions struct.
+    wp = (WordPositions *) malloc(sizeof(WordPositions));
+    Verify333(wp != NULL);
+
+    // Copy word into wp->word.
+    wp->word = (char *) malloc(strlen(word) + 1);
+    Verify333(wp->word != NULL);
+    strcpy(wp->word, word);
+    // Make sure the copy succeeded.
+    Verify333(strcmp(wp->word, word) == 0);
+
+    // Prepare the LinkedList.
+    wp->positions = LinkedList_Allocate();
+    Verify333(wp->positions != NULL);
+    LinkedList_Append(wp->positions, (LLPayload_t) (int64_t) pos);
+
+    // Insert our new WordPositions into tab.
+    kv.key = hash_key;
+    kv.value = (HTValue_t) wp;
+    HTKeyValue_t old_kv;
+    HashTable_Insert(tab, kv, &old_kv);
   }
 }
