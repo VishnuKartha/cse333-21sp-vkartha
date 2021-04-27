@@ -19,9 +19,8 @@
 
 #define HASHTABLE_INITIAL_NUM_BUCKETS 2
 
-// helper function for freeiing a value from HashTable.
-static void TableValue_Free (HTValue_t value);
-
+// Helper function for freeing the values in a HashTable.
+static void TableValue_Free(HTValue_t value);
 
 // This structure represents a DocTable; it contains two hash tables, one
 // mapping from document id to documemnt name, and one mapping from
@@ -46,8 +45,8 @@ void DocTable_Free(DocTable *table) {
   Verify333(table != NULL);
 
   // STEP 1.
-  HashTable_Free(table->id_to_name,TableValue_Free);
-  HashTable_Free(table->name_to_id,TableValue_Free);
+  HashTable_Free(table->id_to_name, TableValue_Free);
+  HashTable_Free(table->name_to_id, TableValue_Free);
   free(table);
 }
 
@@ -62,30 +61,31 @@ DocID_t DocTable_Add(DocTable *table, char *doc_name) {
   HTKeyValue_t kv, old_kv;
 
   Verify333(table != NULL);
-  HTKey_t hashed_doc_name = (HTKey_t)FNVHash64((unsigned char*) doc_name,strlen(doc_name));
+
   // STEP 2.
   // Check to see if the document already exists.Then make a copy of the
   // doc_name and allocate space for the new ID.
-  if(HashTable_Find(table->name_to_id, hashed_doc_name, &old_kv)){
-    return *((DocID_t*) old_kv.value);
+  HTKey_t hashed_doc_name = 
+    (HTKey_t) FNVHash64((unsigned char *) doc_name, strlen(doc_name));
+
+  if (HashTable_Find(table->name_to_id, hashed_doc_name, &old_kv)){
+    return *((DocID_t *) old_kv.value);
   } else { // we want to add a new document
-    doc_copy = (char*) malloc(strlen(doc_name) + 1);
+    doc_copy = (char *) malloc(strlen(doc_name) + 1);
     Verify333(doc_copy != NULL);
-    strcpy(doc_copy,doc_name);
-    doc_id = (DocID_t*) malloc(sizeof(DocID_t));
+    strcpy(doc_copy, doc_name);
+    doc_id = (DocID_t *) malloc(sizeof(DocID_t));
     Verify333(doc_id != NULL);
   }
-
-
 
   *doc_id = table->max_id;
   table->max_id++;
 
   // STEP 3.
   // Set up the key/value for the id->name mapping, and do the insert.
-  kv.key = (HTKey_t)  *doc_id;
+  kv.key = (HTKey_t) *doc_id;
   kv.value = (HTValue_t) doc_copy;
-  HashTable_Insert(table ->id_to_name, kv, &old_kv);
+  HashTable_Insert(table->id_to_name, kv, &old_kv);
 
 
   // STEP 4.
@@ -96,7 +96,7 @@ DocID_t DocTable_Add(DocTable *table, char *doc_name) {
 
   kv.key = hashed_doc_name;
   kv.value = (HTValue_t) doc_id;
-  HashTable_Insert(table ->name_to_id, kv, &old_kv);
+  HashTable_Insert(table->name_to_id, kv, &old_kv);
 
   return *doc_id;
 }
@@ -110,10 +110,9 @@ DocID_t DocTable_GetDocID(DocTable *table, char *doc_name) {
 
   // STEP 5.
   // Try to find the passed-in doc in name_to_id table.
-   key = (HTKey_t)FNVHash64((unsigned char*) doc_name,strlen(doc_name));
-
-  if(HashTable_Find(table -> name_to_id, key,&kv)) {
-    return * ((DocID_t*) kv.value);
+  key = (HTKey_t) FNVHash64((unsigned char *) doc_name, strlen(doc_name));
+  if (HashTable_Find(table->name_to_id, key, &kv)) {
+    return *((DocID_t *) kv.value);
   } else {
     return INVALID_DOCID;
   }
@@ -125,16 +124,13 @@ char *DocTable_GetDocName(DocTable *table, DocID_t doc_id) {
   Verify333(table != NULL);
   Verify333(doc_id != INVALID_DOCID);
 
-
-
   // STEP 6.
   // Lookup the doc_id in the id_to_name table,
   // and either return the string (i.e., the (char *)
   // saved in the value field for that key) or
   // NULL if the key isn't in the table.
-   if(HashTable_Find(table -> id_to_name,(HTKey_t) doc_id, &kv)) {
-     printf("%s\n", (char*) kv.value);
-    return (char*) kv.value;
+  if (HashTable_Find(table->id_to_name, (HTKey_t) doc_id, &kv)) {
+    return (char *) kv.value;
   } else {
     return NULL;
   }
@@ -156,5 +152,3 @@ static void TableValue_Free(HTValue_t value) {
   Verify333(value != NULL);
   free(value);
 }
-
-
