@@ -25,26 +25,41 @@
 # Bug 2
 
 ## A) How is your program acting differently than you expect it to?
-- 
+- searchshell crashes with a double free error.
 
 ## B) Brainstorm a few possible causes of the bug
-- 
-- 
-- 
+- We might be misunderstanding the posix functions and the way they
+  allocate (or don't allocate) memory for certain things. Suspects:
+  getline, strtok_r.
+- Maybe in the event of an error in the searchshell loop, 
+  free is called too many times.
+- Could be mixing _Free functions with normal free or could have passed
+  the wrong deallocator to a _Free function.
 
 ## C) How you fixed the bug and why the fix was necessary
-- 
+- We narrowed the double free down to strtok_r by commenting out different
+  lines. Upon re-reading the documentation, we realized that strtok_r builds
+  the tokens from the original string and does not allocate new space. Removing
+  the calls to free each token fixed the double free.
 
 
 # Bug 3
 
 ## A) How is your program acting differently than you expect it to?
-- 
+- When the query contains more than one word, the rank sometimes differs
+  from the solution binary's rank. Our rank is always higher than the
+  correct rank.
 
 ## B) Brainstorm a few possible causes of the bug
-- 
-- 
-- 
+- We might be tallying up the rank incorrectly. If this is the cause,
+  the most likely source of error is the second loop in MemIndex_Search.
+- A file's contributions to rank are being double counted.
+- There is an uninitialized variable somewhere related to the rank computation.
 
 ## C) How you fixed the bug and why the fix was necessary
-- 
+- After examining the state of MemIndex_Search in different locations while
+  processing a query, we found that certain doc IDs were being processed twice.
+  This turned out to be caused by an incorrect usage of LLIterator_Remove,
+  since this function returns the iterator to the predecessor if the element
+  removed is the last in the list. The fix was to run the removal loop a fixed
+  number of iterations rather than repeating until the iterator became invalid.
