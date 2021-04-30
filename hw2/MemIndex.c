@@ -181,16 +181,17 @@ LinkedList *MemIndex_Search(MemIndex *index, char *query[], int query_len) {
    }
    wp = kv.value;
    ret_list = LinkedList_Allocate();
-   HTIterator* postings_it = HTIterator_Allocate(wp->postings);
-   while(HTIterator_IsValid(postings_it)){
-     SearchResult* res = (SearchResult*) malloc(sizeof(SearchResult));
+   HTIterator *postings_it = HTIterator_Allocate(wp->postings);
+   while (HTIterator_IsValid(postings_it)){
+     SearchResult *res = (SearchResult*) malloc(sizeof(SearchResult));
      Verify333(res != NULL);
-     HTIterator_Get(postings_it,&kv);
+     HTIterator_Get(postings_it, &kv);
      res->doc_id = kv.key;
-     res->rank = LinkedList_NumElements(kv.value);
+     res->rank = LinkedList_NumElements((LinkedList *)kv.value);
      LinkedList_Append(ret_list,res);
      HTIterator_Next(postings_it);
    }
+   HTIterator_Free(postings_it);
 
 
 
@@ -211,11 +212,11 @@ LinkedList *MemIndex_Search(MemIndex *index, char *query[], int query_len) {
     // Look up the next query word (query[i]) in the inverted index.
     // If there are no matches, it means the overall query
     // should return no documents, so free retlist and return NULL.
-   key = FNVHash64((unsigned char *) query[i], strlen(query[i]));
-   if(!HashTable_Find(index, key, &kv)) { // there cannot be any matching documents
-     LinkedList_Free(ret_list,free);
-     return NULL;
-   }
+    key = FNVHash64((unsigned char *) query[i], strlen(query[i]));
+    if(!HashTable_Find(index, key, &kv)) { // there cannot be any matching documents
+      LinkedList_Free(ret_list,free);
+      return NULL;
+    }
 
 
     // STEP 6.
@@ -232,14 +233,15 @@ LinkedList *MemIndex_Search(MemIndex *index, char *query[], int query_len) {
     ll_it = LLIterator_Allocate(ret_list);
     Verify333(ll_it != NULL);
     wp = kv.value;
-    while(LLIterator_IsValid(ll_it)){
+    int num_results = LinkedList_NumElements(ret_list);
+    for (int j = 0; j < num_results; j++) {
       SearchResult* res;
-      LLIterator_Get(ll_it,(LLPayload_t*)&res);
-      if(HashTable_Find(wp->postings,res->doc_id,&kv)) {
-        res ->rank += LinkedList_NumElements(kv.value);
+      LLIterator_Get(ll_it, (LLPayload_t*) &res);
+      if (HashTable_Find(wp->postings, res->doc_id, &kv)) {
+        res->rank += LinkedList_NumElements(kv.value);
         LLIterator_Next(ll_it);
       } else { // remove the SearchResult
-        LLIterator_Remove(ll_it,free);
+        LLIterator_Remove(ll_it, free);
       }
     }
     LLIterator_Free(ll_it);

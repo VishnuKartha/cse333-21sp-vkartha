@@ -118,7 +118,7 @@ static void HandleDir(char *dir_path, DIR *d, DocTable **doctable,
   struct entry_st *entries = (struct entry_st *)
       malloc(sizeof(struct entry_st) * entries_capacity);
 
-  int i;
+  int i = 0;
   int path_name_len;
   struct stat st;
 
