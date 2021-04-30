@@ -63,17 +63,21 @@ DocID_t DocTable_Add(DocTable *table, char *doc_name) {
   Verify333(table != NULL);
 
   // STEP 2.
-  // Check to see if the document already exists.Then make a copy of the
+  // Check to see if the document already exists. Then make a copy of the
   // doc_name and allocate space for the new ID.
-  HTKey_t hashed_doc_name = 
+  HTKey_t hashed_doc_name =
     (HTKey_t) FNVHash64((unsigned char *) doc_name, strlen(doc_name));
 
-  if (HashTable_Find(table->name_to_id, hashed_doc_name, &old_kv)){
+  if (HashTable_Find(table->name_to_id, hashed_doc_name, &old_kv)) {
+    // The document already exists, so just return the existing ID.
     return *((DocID_t *) old_kv.value);
-  } else { // we want to add a new document
+  } else {
+    // We need to add a new document. Prepare space for the document
+    // name and ID.
     doc_copy = (char *) malloc(strlen(doc_name) + 1);
     Verify333(doc_copy != NULL);
-    strcpy(doc_copy, doc_name);
+    snprintf(doc_copy, strlen(doc_name) + 1, "%s", doc_name);
+    Verify333(strcmp(doc_copy, doc_name) == 0);
     doc_id = (DocID_t *) malloc(sizeof(DocID_t));
     Verify333(doc_id != NULL);
   }
@@ -86,7 +90,6 @@ DocID_t DocTable_Add(DocTable *table, char *doc_name) {
   kv.key = (HTKey_t) *doc_id;
   kv.value = (HTValue_t) doc_copy;
   HashTable_Insert(table->id_to_name, kv, &old_kv);
-
 
   // STEP 4.
   // Set up the key/value for the name->id, and/ do the insert.

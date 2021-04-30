@@ -118,21 +118,15 @@ static void HandleDir(char *dir_path, DIR *d, DocTable **doctable,
   struct entry_st *entries = (struct entry_st *)
       malloc(sizeof(struct entry_st) * entries_capacity);
 
-  int i = 0;
-  int path_name_len;
-  struct stat st;
-
-  int num_entries;
-
   // STEP 1.
   // Use the "readdir()" system call to read the directory entries in a
   // loop ("man 3 readdir").  Exit out of the loop when we reach the end
   // of the directory.
 
   // First pass, to populate the "entries" list of item metadata.
+  int num_entries = 0;
   struct dirent *dirent = readdir(d);
-  while (dirent) { // you probably want to change/add to this loop
-
+  while (dirent) {
     // STEP 2.
     // If the directory entry is named "." or "..", ignore it.  Use the C
     // "continue" expression to begin the next iteration of the loop.  What
@@ -140,16 +134,13 @@ static void HandleDir(char *dir_path, DIR *d, DocTable **doctable,
     // How do you compare strings in C?
 
     if (strcmp(dirent->d_name, ".") == 0 || strcmp(dirent->d_name, "..") == 0) {
+      // Make sure to advance d first to avoid an infinite loop.
       dirent = readdir(d);
       continue;
     }
 
-    //
-    // Record the name and directory status.
-    //
-
     // Resize the entries array if it's too small.
-    if (i == entries_capacity) {
+    if (num_entries == entries_capacity) {
       entries_capacity *= 2;
       entries = (struct entry_st *)
         realloc(entries, sizeof(struct entry_st) * entries_capacity);
@@ -158,23 +149,25 @@ static void HandleDir(char *dir_path, DIR *d, DocTable **doctable,
     // We need to append the name of the file to the name of the directory
     // we're in to get the full filename. So, we'll malloc space for:
     //     dirpath + "/" + dirent->d_name + '\0'
-    path_name_len = strlen(dir_path) + 1 + strlen(dirent->d_name) + 1;
-    entries[i].path_name = (char *) malloc(path_name_len);
-    Verify333(entries[i].path_name != NULL);
+    int path_name_len = strlen(dir_path) + 1 + strlen(dirent->d_name) + 1;
+    entries[num_entries].path_name = (char *) malloc(path_name_len);
+    Verify333(entries[num_entries].path_name != NULL);
     if (dir_path[strlen(dir_path)-1] == '/') {
       // No need to add an additional '/'.
-      snprintf(entries[i].path_name, path_name_len,
+      snprintf(entries[num_entries].path_name, path_name_len,
                "%s%s", dir_path, dirent->d_name);
     } else {
       // We do need to add an additional '/'.
-      snprintf(entries[i].path_name, path_name_len,
+      snprintf(entries[num_entries].path_name, path_name_len,
                "%s/%s", dir_path, dirent->d_name);
     }
 
     // Use the "stat()" system call to ask the operating system to give us
     // information about the file identified by the directory entry (see
     // also "man 2 stat").
-    if (stat(entries[i].path_name, &st) == 0) {
+
+    struct stat st;
+    if (stat(entries[num_entries].path_name, &st) == 0) {
       // STEP 3.
       // Test to see if the file is a "regular file" using the S_ISREG() macro
       // described in the stat man page. If so, we'll process the file by
@@ -189,11 +182,11 @@ static void HandleDir(char *dir_path, DIR *d, DocTable **doctable,
       // If it is neither, skip the file.
 
       if (S_ISREG(st.st_mode)) {
-        entries[i].is_dir = false;
-        i++;
+        entries[num_entries].is_dir = false;
+        num_entries++;
       } else if (S_ISDIR(st.st_mode)) {
-        entries[i].is_dir = true;
-        i++;
+        entries[num_entries].is_dir = true;
+        num_entries++;
       }
     }
 
@@ -201,11 +194,10 @@ static void HandleDir(char *dir_path, DIR *d, DocTable **doctable,
   }  // end iteration over directory contents ("first pass").
 
   // Sort the directory's metadata alphabetically.
-  num_entries = i;
   qsort(entries, num_entries, sizeof(struct entry_st), &alphasort);
 
   // Second pass, processing the now-sorted directory metadata.
-  for (i = 0; i < num_entries; i++) {
+  for (int i = 0; i < num_entries; i++) {
     if (!entries[i].is_dir) {
       HandleFile(entries[i].path_name, doctable, index);
     } else {
@@ -255,7 +247,7 @@ static void HandleFile(char *file_path, DocTable **doctable, MemIndex **index) {
     // of the hashtable. Then, use MemIndex_AddPostingList() to add the word,
     // document ID, and positions linked list into the inverted index.
     HTIterator_Remove(it, &kv);
-    wp = (WordPositions *)kv.value;
+    wp = (WordPositions *) kv.value;
     MemIndex_AddPostingList(*index, wp->word, doc_id, wp->positions);
 
     // Since we've transferred ownership of the memory associated with both
