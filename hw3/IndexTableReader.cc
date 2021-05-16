@@ -59,7 +59,9 @@ DocIDTableReader* IndexTableReader::LookupWord(const string &word) const {
     // specifically, extract the "word length" field and the "docID
     // table length" fields, converting from network to host order.
     WordPostingsHeader header;
-
+    fseek(file_, offset, SEEK_SET);
+    Verify333(fread(&header, sizeof(WordPostingsHeader), 1, file_) == 1);
+    header.ToHostFormat();
 
 
     // If the "word length" field doesn't match the length of the word
@@ -73,7 +75,9 @@ DocIDTableReader* IndexTableReader::LookupWord(const string &word) const {
     // using fread().
     stringstream ss;
     for (int i = 0; i < header.word_bytes; i++) {
-      // STEP 2.
+      uint8_t next_char;
+      Verify333(fread(&next_char, sizeof(uint8_t), 1, file_) == 1);
+      ss << next_char;
     }
 
     // Use ss.str() to extract a std::string from the stringstream,
@@ -84,7 +88,7 @@ DocIDTableReader* IndexTableReader::LookupWord(const string &word) const {
       // DocIDTableReader.  Be sure to use FileDup() to pass a
       // duplicated (FILE *) as the first argument to the
       // DocIDTableReader constructor, since we want the manufactured
-      // DocIDTableReader to have its own (FILE *) handle
+      // DocIDTableReader to have aits own (FILE *) handle
       //
       // return the new'd (DocIDTableReader *) to the caller.
       IndexFileOffset_t docIDTableOffset = offset + sizeof(WordPostingsHeader)
