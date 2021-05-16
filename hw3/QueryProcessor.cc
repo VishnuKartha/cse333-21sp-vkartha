@@ -25,6 +25,7 @@ using std::vector;
 
 namespace hw3 {
 
+
 QueryProcessor::QueryProcessor(const list<string> &index_list, bool validate) {
   // Stash away a copy of the index list.
   index_list_ = index_list;
@@ -76,11 +77,24 @@ QueryProcessor::ProcessQuery(const vector<string> &query) const {
   // STEP 1.
   // (the only step in this file)
   vector<QueryProcessor::QueryResult> final_result;
+  for(int i = 0; i < array_len_; i++) {
+    QueryProcessHelper(dtr_array_[i], itr_array_[i],query);
+  }
 
 
   // Sort the final results.
   sort(final_result.begin(), final_result.end());
   return final_result;
 }
+
+
+list<IdxQueryResult> QueryProcessHelper(DocTableReader *dtr, IndexTableReader *itr, const vector<string> &query) {
+  list<IdxQueryResult> ret_list;
+  itr->
+  
+
+
+}
+
 
 }  // namespace hw3
