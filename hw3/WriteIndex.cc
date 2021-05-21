@@ -11,8 +11,6 @@
 
 #include "./WriteIndex.h"
 
-#include <iostream>
-
 #include <cstdio>    // for (FILE *).
 #include <cstring>   // for strlen(), etc.
 
@@ -30,6 +28,9 @@ namespace hw3 {
 // Helper function declarations and constants
 
 static constexpr int kFailedWrite = -1;
+
+// Buffer size used when reading in a file to calculate a checksum.
+static constexpr int kBufSize = 512;
 
 // Helper function to write the docid->filename mapping from the
 // DocTable "dt" into file "f", starting at byte offset "offset".
@@ -258,28 +259,37 @@ static int WriteHeader(FILE *f,
   // to do the CRC checksum calculation, feeding it characters that you
   // read from the index file using fread().
 
-  // Allocate buffer for doctable and index table bytes.
-  size_t total_bytes = doctable_bytes + memidx_bytes;
-  uint8_t *table_data = new uint8_t[total_bytes];
-  Verify333(table_data != nullptr);
-
-  // Try to read everything into the buffer.
+  // Seek to the start of the doctable.
   if (fseek(f, sizeof(IndexFileHeader), SEEK_SET) != 0) {
-    delete[] table_data;
-    return kFailedWrite;
-  }
-  if (fread(table_data, sizeof(uint8_t), total_bytes, f) != total_bytes) {
-    // Didn't get everything.
-    delete[] table_data;
     return kFailedWrite;
   }
 
-  // Calculate the checksum over everything.
   CRC32 crc;
-  for (size_t i = 0; i < total_bytes; i++) {
-    crc.FoldByteIntoCRC(table_data[i]);
+  char buf[kBufSize];
+
+  // Read in all bytes from the doctable and index table.
+  int bytes_left = doctable_bytes + memidx_bytes;
+  while (bytes_left > 0) {
+    // We'll read min(bytes_left, kBufSize) at a time to not overflow buf.
+    int to_read;
+    if (bytes_left > kBufSize) {
+      to_read = kBufSize;
+    } else {
+      to_read = bytes_left;
+    }
+
+    // Do the fread, checking for a potential error.
+    int bytes_read = fread(buf, sizeof(char), to_read, f);
+    if (bytes_read != to_read) {
+      return kFailedWrite;
+    }
+
+    // Fold everything we just read into the CRC object.
+    bytes_left -= bytes_read;
+    for (int i = 0; i < bytes_read; i++) {
+      crc.FoldByteIntoCRC(buf[i]);
+    }
   }
-  delete[] table_data;
 
   // Write the header fields.  Be sure to convert the fields to
   // network order before writing them!
