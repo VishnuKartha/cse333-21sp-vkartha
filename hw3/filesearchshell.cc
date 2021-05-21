@@ -11,16 +11,20 @@
 
 #include <cstdlib>    // for EXIT_SUCCESS, EXIT_FAILURE
 #include <iostream>   // for std::cout, std::cerr, etc.
+#include <sstream>    // for istringstream
 
 #include "./QueryProcessor.h"
 
-using std::cerr;
-using std::endl;
+using hw3::QueryProcessor;
 
-static void Usage(char *prog_name) {
-  cerr << "Usage: " << prog_name << " [index files+]" << endl;
-  exit(EXIT_FAILURE);
-}
+// Helper functions
+
+// Prints program usage and exits with a failure.
+static void Usage(char *prog_name);
+
+// Separates a whitespace-separated string into words, converting
+// alphabetic characters to lowercase.
+static std::vector<std::string> SplitAndLower(const std::string &str);
 
 // Your job is to implement the entire filesearchshell.cc
 // functionality. We're essentially giving you a blank screen to work
@@ -88,7 +92,63 @@ int main(int argc, char **argv) {
   // Implement filesearchshell!
   // Probably want to write some helper methods ...
 
-  while (1) { }
+  // Put the arguments in a list<string> and build the QueryProcessor.
+  std::list<std::string> index_names;
+  for (int i = 1; i < argc; i++) {
+    index_names.push_back(std::string(argv[i]));
+  }
+  QueryProcessor processor(index_names, true);
+
+  // Process queries.
+  while (true) {
+    std::cout << "Enter query:" << std::endl;
+
+    std::string line;
+    std::getline(std::cin, line);
+    if (std::cin.eof()) {
+      break;
+    }
+
+    if (line.empty()) {
+      continue;
+    }
+
+    std::vector<std::string> query = SplitAndLower(line);
+    if (query.empty()) {
+      continue;
+    }
+
+    std::vector<QueryProcessor::QueryResult> results 
+        = processor.ProcessQuery(query);
+    
+    if (results.empty()) {
+      std::cout << "  [no results]" << std::endl;
+    } else {
+      for (const auto& result : results) {
+        std::cout << "  " << result.document_name 
+                  << " (" << result.rank << ")" << std::endl;
+      }
+    }
+  }
 
   return EXIT_SUCCESS;
+}
+
+static void Usage(char *prog_name) {
+  std::cerr << "Usage: " << prog_name << " [index files+]" << std::endl;
+  exit(EXIT_FAILURE);
+}
+
+static std::vector<std::string> SplitAndLower(const std::string &str) {
+  std::istringstream iss(str);
+  std::vector<std::string> ret;
+  std::string word;
+  while (iss >> word) {
+    // Convert word to lowercase.
+    for (char& c : word) {
+      c = std::tolower(c);
+    }
+    ret.push_back(word);
+  }
+  return ret;
 }

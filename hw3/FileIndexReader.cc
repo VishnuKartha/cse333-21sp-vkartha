@@ -14,7 +14,6 @@
 #include <sys/types.h>  // for stat()
 #include <sys/stat.h>   // for stat()
 #include <unistd.h>     // for stat()
-#include <iostream>
 
 extern "C" {
   #include "libhw1/CSE333.h"
@@ -71,14 +70,14 @@ FileIndexReader::FileIndexReader(const string& file_name,
       // this step. Remember that file_ is now unbuffered, so care needs
       // to be put into how the file is sequentially read
       int numToRead;
-      if(left_to_read > kBufSize){ // maybe math.min!!!!!
+      if (left_to_read > kBufSize) {
         numToRead = kBufSize;
       } else {
         numToRead = left_to_read;
       }
-      int num_read = fread(buf, sizeof(char),numToRead,file_);
+      int num_read = fread(buf, sizeof(char), numToRead, file_);
       left_to_read -= num_read;
-      for(int i = 0; i < num_read;i++) {
+      for (int i = 0; i < num_read; i++) {
         crc_obj.FoldByteIntoCRC(buf[i]);
       }
     }

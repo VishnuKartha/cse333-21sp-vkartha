@@ -10,7 +10,6 @@
  */
 
 #include "./HashTableReader.h"
-#include <iostream>
 
 extern "C" {
   #include "libhw1/CSE333.h"
@@ -62,12 +61,12 @@ HashTableReader::LookupElementPositions(HTKey_t hash_key) const {
   // Read the "element positions" fields from the "bucket" header into
   // the returned list.  Be sure to insert into the list in the
   // correct order (i.e., append to the end of the list).
-  for(int i = 0; i < bucket_rec.chain_num_elements;i++) {
+  for (int i = 0; i < bucket_rec.chain_num_elements; i++) {
     IndexFileOffset_t record_pos = bucket_rec.position
                                    + i * sizeof(ElementPositionRecord);
     Verify333(fseek(file_, record_pos, SEEK_SET) == 0);
     ElementPositionRecord current;
-    Verify333(fread(&current, sizeof(ElementPositionRecord), 1, file_) == 1); 
+    Verify333(fread(&current, sizeof(ElementPositionRecord), 1, file_) == 1);
     current.ToHostFormat();
     ret_val.push_back(current.position);
   }

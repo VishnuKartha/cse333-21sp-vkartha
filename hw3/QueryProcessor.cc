@@ -25,6 +25,18 @@ using std::vector;
 
 namespace hw3 {
 
+// This structure is used to store a index-file-specific query result.
+typedef struct {
+  DocID_t doc_id;  // The document ID within the index file.
+  int rank;       // The rank of the result so far.
+} IdxQueryResult;
+
+// Helper function that processes a query against a single index and
+// returns a list of IdxQueryResults. If no documents match the query,
+// a valid but empty list will be returned.
+static list<IdxQueryResult> GetIndexQueryResults(const IndexTableReader *itr,
+                                                 const vector<string> &query);
+
 QueryProcessor::QueryProcessor(const list<string> &index_list, bool validate) {
   // Stash away a copy of the index list.
   index_list_ = index_list;
@@ -63,18 +75,6 @@ QueryProcessor::~QueryProcessor() {
   itr_array_ = nullptr;
 }
 
-// This structure is used to store a index-file-specific query result.
-typedef struct {
-  DocID_t doc_id;  // The document ID within the index file.
-  int rank;       // The rank of the result so far.
-} IdxQueryResult;
-
-// Helper function that processes a query against a single index and
-// returns a list of IdxQueryResults. If no documents match the query,
-// a valid but empty list will be returned.
-static list<IdxQueryResult> GetIndexQueryResults(const IndexTableReader *itr, 
-                                                 const vector<string> &query);
-
 vector<QueryProcessor::QueryResult>
 QueryProcessor::ProcessQuery(const vector<string> &query) const {
   Verify333(query.size() > 0);
@@ -82,7 +82,7 @@ QueryProcessor::ProcessQuery(const vector<string> &query) const {
   // STEP 1.
   // (the only step in this file)
   vector<QueryProcessor::QueryResult> final_result;
-  for(int i = 0; i < array_len_; i++) {
+  for (int i = 0; i < array_len_; i++) {
     list<IdxQueryResult> results = GetIndexQueryResults(itr_array_[i], query);
     const DocTableReader *dtr = dtr_array_[i];
     // Accumulate all of the results for the current index.
@@ -101,7 +101,7 @@ QueryProcessor::ProcessQuery(const vector<string> &query) const {
 }
 
 
-static list<IdxQueryResult> GetIndexQueryResults(const IndexTableReader *itr, 
+static list<IdxQueryResult> GetIndexQueryResults(const IndexTableReader *itr,
                                                  const vector<string> &query) {
   list<IdxQueryResult> ret_list;
   const DocIDTableReader *ditr = itr->LookupWord(query[0]);

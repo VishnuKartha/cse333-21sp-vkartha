@@ -14,8 +14,6 @@
 #include <cstdio>    // for (FILE *).
 #include <cstring>   // for strlen(), etc.
 
-#include <iostream>
-
 // We need to peek inside the implementation of a HashTable so
 // that we can iterate through its buckets and their chain elements.
 extern "C" {
@@ -217,8 +215,6 @@ int WriteIndex(MemIndex *mi, DocTable *dt, const char *file_name) {
     return kFailedWrite;
   }
   // Don't need to add hd_bytes because we already added sizeof(Header).
-  
-  // std::cout << "claim: " << dt_bytes << ", " << mi_bytes << ", " << hd_bytes << ", " << cur_pos << std::endl;
 
   // Clean up and return the total amount written.
   fclose(f);
@@ -338,8 +334,8 @@ static int WriteHashTable(FILE *f,
   for (int i = 0; i < ht->num_buckets; i++) {
     // STEP 4.
     LinkedList *chain = ht->buckets[i];
-    int rec_bytes = WriteHTBucketRecord(f, record_pos, 
-                                        LinkedList_NumElements(chain), 
+    int rec_bytes = WriteHTBucketRecord(f, record_pos,
+                                        LinkedList_NumElements(chain),
                                         bucket_pos);
     if (rec_bytes == kFailedWrite) {
       return kFailedWrite;
@@ -428,7 +424,7 @@ static int WriteHTBucket(FILE *f,
     // STEP 8.
     // Write the element itself, using fn.
     HTKeyValue_t *kv;
-    LLIterator_Get(it, (LLPayload_t *)(&kv));
+    LLIterator_Get(it, reinterpret_cast<LLPayload_t *>(&kv));
     int element_bytes = fn(f, element_pos, kv);
     if (element_bytes < 0) {
       LLIterator_Free(it);
@@ -457,7 +453,7 @@ static int WriteDocidToDocnameFn(FILE *f,
                                  HTKeyValue_t *kv) {
   // STEP 9.
   // determine the file name length
-  char *docname = (char*)(kv->value);
+  char *docname = reinterpret_cast<char*>(kv->value);
   uint16_t file_name_bytes = strlen(docname);
 
   // fwrite() the docid from "kv".  Remember to convert to
@@ -524,7 +520,7 @@ static int WriteDocidToPositionListFn(FILE *f,
 
     // STEP 14.
     // Truncate to 32 bits, then convert it to network order and write it out.
-    position.position = 
+    position.position =
       static_cast<DocPositionOffset_t>(reinterpret_cast<uint64_t>(payload));
     position.ToDiskFormat();
     if (fwrite(&position, sizeof(DocIDElementPosition), 1, f) != 1) {
@@ -539,8 +535,8 @@ static int WriteDocidToPositionListFn(FILE *f,
 
   // STEP 15.
   // Calculate and return the total amount of data written.
-  return sizeof(DocIDElementHeader) 
-    + num_positions * sizeof(DocIDElementPosition);
+  return sizeof(DocIDElementHeader)
+         + num_positions * sizeof(DocIDElementPosition);
 }
 
 // This write_element_fn is used to write a WordPostings

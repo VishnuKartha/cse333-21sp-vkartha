@@ -10,7 +10,6 @@
  */
 
 #include "./DocIDTableReader.h"
-#include <iostream>
 
 extern "C" {
   #include "libhw1/CSE333.h"
@@ -47,7 +46,7 @@ bool DocIDTableReader::LookupDocID(const DocID_t &doc_id,
     DocIDElementHeader curr_header;
     Verify333(fseek(file_, curr, SEEK_SET) == 0);
     Verify333(fread(&curr_header, sizeof(DocIDElementHeader), 1, file_) == 1);
-    curr_header.ToHostFormat(); 
+    curr_header.ToHostFormat();
 
     // Is it a match?
     if (curr_header.doc_id == doc_id) {
@@ -59,7 +58,7 @@ bool DocIDTableReader::LookupDocID(const DocID_t &doc_id,
       list<DocPositionOffset_t> positions;
       for (int i = 0; i < curr_header.num_positions; i++) {
         DocIDElementPosition current;
-        Verify333(fread(&current, sizeof(DocIDElementPosition), 1, file_) == 1); 
+        Verify333(fread(&current, sizeof(DocIDElementPosition), 1, file_) == 1);
         current.ToHostFormat();
         positions.push_back(current.position);
       }
@@ -115,7 +114,7 @@ list<DocIDElementHeader> DocIDTableReader::GetDocIDList() const {
       element_pos.ToHostFormat();
 
       Verify333(fseek(file_, element_pos.position, SEEK_SET) == 0);
-     
+
       // STEP 7.
       // Read in the docid and number of positions from the element.
       DocIDElementHeader element;
