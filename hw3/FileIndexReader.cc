@@ -45,12 +45,9 @@ FileIndexReader::FileIndexReader(const string& file_name,
 
   // STEP 3.
   // Verify that the magic number is correct.  Crash if not.
-  Verify333((header_.magic_number == kMagicNumber));
-
+  Verify333(header_.magic_number == kMagicNumber);
 
   // Make sure the index file's length lines up with the header fields.
-
-
   struct stat f_stat;
 
   Verify333(stat(file_name_.c_str(), &f_stat) == 0);

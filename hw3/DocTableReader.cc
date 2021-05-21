@@ -48,10 +48,10 @@ bool DocTableReader::LookupDocID(const DocID_t &doc_id,
     // STEP 1.
     // Slurp the next docid out of the element.
     DoctableElementHeader curr_header;
-    fseek(file_, curr, SEEK_SET);
-    Verify333(fread(&curr_header, sizeof(DoctableElementHeader), 1, file_) == 1);
+    Verify333(fseek(file_, curr, SEEK_SET) == 0);
+    Verify333(
+        fread(&curr_header, sizeof(DoctableElementHeader), 1, file_) == 1);
     curr_header.ToHostFormat();
-    
 
     // Is it a match?
     if (curr_header.doc_id == doc_id) {
@@ -70,8 +70,6 @@ bool DocTableReader::LookupDocID(const DocID_t &doc_id,
       // and return it through the output parameter ret_str.  Return
       // true.
       *ret_str = ss.str();
-
-
       return true;
     }
   }
