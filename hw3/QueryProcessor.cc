@@ -104,30 +104,31 @@ QueryProcessor::ProcessQuery(const vector<string> &query) const {
 static list<IdxQueryResult> GetIndexQueryResults(const IndexTableReader *itr, 
                                                  const vector<string> &query) {
   list<IdxQueryResult> ret_list;
-  const DocIDTableReader *dtr = itr->LookupWord(query[0]);
-  if (!dtr) {
+  const DocIDTableReader *ditr = itr->LookupWord(query[0]);
+  if (!ditr) {
     // There can't be any matches. Exit early.
     return ret_list;
   }
 
   // Get the initial matching document list. The starting rank is just
   // the number of occurences.
-  list<DocIDElementHeader> matches = dtr->GetDocIDList();
+  list<DocIDElementHeader> matches = ditr->GetDocIDList();
   for (const auto& header : matches) {
     ret_list.push_back({header.doc_id, header.num_positions});
   }
+  delete ditr;
 
   // Process the rest of the query words.
   for (size_t i = 1; i < query.size(); i++) {
-    dtr = itr->LookupWord(query[i]);
-    if (!dtr) {
+    ditr = itr->LookupWord(query[i]);
+    if (!ditr) {
       // Everything will be removed from the result list, so exit early.
       return list<IdxQueryResult>();
     }
 
     for (auto it = ret_list.begin(); it != ret_list.end(); ) {
       list<DocPositionOffset_t> positions;
-      bool found = dtr->LookupDocID(it->doc_id, &positions);
+      bool found = ditr->LookupDocID(it->doc_id, &positions);
 
       // Either update or remove the IdxQueryResult at it.
       if (found) {
@@ -137,6 +138,7 @@ static list<IdxQueryResult> GetIndexQueryResults(const IndexTableReader *itr,
         it = ret_list.erase(it);
       }
     }
+    delete ditr;
   }
   return ret_list;
 }
