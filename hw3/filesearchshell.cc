@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
     if (results.empty()) {
       std::cout << "  [no results]" << std::endl;
     } else {
-      for (const auto& result : results) {
+      for (const auto &result : results) {
         std::cout << "  " << result.document_name
                   << " (" << result.rank << ")" << std::endl;
       }
@@ -147,7 +147,7 @@ static std::vector<std::string> SplitAndLower(const std::string &str) {
   std::string word;
   while (iss >> word) {
     // Convert word to lowercase.
-    for (char& c : word) {
+    for (char &c : word) {
       c = std::tolower(c);
     }
     ret.push_back(word);
