@@ -101,31 +101,33 @@ int main(int argc, char **argv) {
 
   // Process queries.
   while (true) {
+    // Prompt for query on stdout and read query from stdin.
     std::cout << "Enter query:" << std::endl;
-
     std::string line;
     std::getline(std::cin, line);
     if (std::cin.eof()) {
+      // Exit if the user presses Ctrl-D.
       break;
     }
-
     if (line.empty()) {
+      // User provided an empty line. Ignore this query.
       continue;
     }
 
     std::vector<std::string> query = SplitAndLower(line);
     if (query.empty()) {
+      // The query only contained whitespace. Ignore this query.
       continue;
     }
 
-    std::vector<QueryProcessor::QueryResult> results 
+    // Perform the query and print results to stdout.
+    std::vector<QueryProcessor::QueryResult> results
         = processor.ProcessQuery(query);
-    
     if (results.empty()) {
       std::cout << "  [no results]" << std::endl;
     } else {
       for (const auto& result : results) {
-        std::cout << "  " << result.document_name 
+        std::cout << "  " << result.document_name
                   << " (" << result.rank << ")" << std::endl;
       }
     }

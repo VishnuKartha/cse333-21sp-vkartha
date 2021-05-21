@@ -11,6 +11,8 @@
 
 #include "./WriteIndex.h"
 
+#include <iostream>
+
 #include <cstdio>    // for (FILE *).
 #include <cstring>   // for strlen(), etc.
 
@@ -255,8 +257,6 @@ static int WriteHeader(FILE *f,
   // Use fseek() to seek to the right location, and use a CRC32 object
   // to do the CRC checksum calculation, feeding it characters that you
   // read from the index file using fread().
-  // Seek to the start of the doctable.
-  CRC32 crc;
 
   // Allocate buffer for doctable and index table bytes.
   size_t total_bytes = doctable_bytes + memidx_bytes;
@@ -273,7 +273,9 @@ static int WriteHeader(FILE *f,
     delete[] table_data;
     return kFailedWrite;
   }
+
   // Calculate the checksum over everything.
+  CRC32 crc;
   for (size_t i = 0; i < total_bytes; i++) {
     crc.FoldByteIntoCRC(table_data[i]);
   }
@@ -591,4 +593,5 @@ static int WriteWordToPostingsFn(FILE *f,
   // Calculate and return the total amount of data written.
   return sizeof(WordPostingsHeader) + word_bytes + ht_bytes;
 }
+
 }  // namespace hw3
