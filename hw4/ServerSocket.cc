@@ -167,6 +167,7 @@ bool ServerSocket::Accept(int *accepted_fd,
     ExtractClientInfo(client_fd, reinterpret_cast<struct sockaddr *>(&caddr), caddr_len ,client_addr, client_port);
     ExtractClientDNS(reinterpret_cast<struct sockaddr *>(&caddr), caddr_len, client_dns_name);
     ExtractServerInfo(client_fd, sock_family_, server_addr, server_dns_name);
+    *accepted_fd = client_fd;
     return true;    
   } 
   

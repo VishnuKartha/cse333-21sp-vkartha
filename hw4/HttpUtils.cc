@@ -53,9 +53,10 @@ bool IsPathSafe(const string &root_dir, const string &test_file) {
   // path of a file.)
 
   // STEP 1
+  string root_dir_absolute_path(realpath(root_dir.c_str(), nullptr));
+  string test_file_absolute_path(realpath(test_file.c_str(), nullptr));
 
-
-  return true;  // You may want to change this.
+  return test_file_absolute_path.find(root_dir_absolute_path) == 0;
 }
 
 string EscapeHtml(const string &from) {
@@ -69,7 +70,11 @@ string EscapeHtml(const string &from) {
   // looked up online.
 
   // STEP 2
-
+  replace_all(ret, "&", "&amp;");
+  replace_all(ret, "\"", "&quot;");
+  replace_all(ret, "'", "&apos;");
+  replace_all(ret, "<", "&lt;");
+  replace_all(ret, ">", "&gt;");
 
   return ret;
 }
