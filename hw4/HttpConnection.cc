@@ -15,6 +15,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "./HttpRequest.h"
 #include "./HttpUtils.h"
@@ -28,6 +29,7 @@ namespace hw4 {
 
 static const char *kHeaderEnd = "\r\n\r\n";
 static const int kHeaderEndLen = 4;
+static const int kReadLen = 1024;
 
 bool HttpConnection::GetNextRequest(HttpRequest *request) {
   // Use "WrappedRead" to read data into the buffer_
@@ -45,9 +47,29 @@ bool HttpConnection::GetNextRequest(HttpRequest *request) {
   // caller invokes GetNextRequest()!
 
   // STEP 1:
+  size_t pos = buffer_.find(kHeaderEnd);
+  while (pos == string::npos) {
+    unsigned char buf[kReadLen];
+    int result = WrappedRead(fd_, buf, kReadLen);
+    if (result == -1) {
+      return false;
+    }
+    for (int i = 0; i < result; i++) {
+      buffer_.push_back(static_cast<char>(buf[i]));
+    }
+    pos = buffer_.find(kHeaderEnd);
+    if (result == 0) {
+      break;
+    }
+  }
 
+  if (pos == string::npos) {
+    return false;
+  }
 
-  return false;  // You may want to change this.
+  *request = ParseRequest(buffer_.substr(0, pos + kHeaderEndLen));
+  buffer_.erase(0, pos + kHeaderEndLen);
+  return true;
 }
 
 bool HttpConnection::WriteResponse(const HttpResponse &response) const {
@@ -80,7 +102,26 @@ HttpRequest HttpConnection::ParseRequest(const string &request) const {
   // malformed, you may skip that line.
 
   // STEP 2:
+  vector<string> lines;
+  boost::split(lines, request, boost::is_any_of("\r\n"), 
+                               boost::token_compress_on);
+  vector<string> tokens;
+  boost::split(tokens, lines[0], boost::is_any_of(" "), 
+                                 boost::token_compress_on);
+  req.set_uri(tokens[1]);
 
+  for (size_t i = 1; i < lines.size(); i++) {
+    boost::split(tokens, lines[i], boost::is_any_of(": "),
+                                   boost::token_compress_on);
+    if (tokens.size() != 2) {
+      continue;
+    }
+    boost::algorithm::to_lower(tokens[0]);
+    boost::algorithm::to_lower(tokens[1]);
+    boost::trim(tokens[0]);
+    boost::trim(tokens[1]);
+    req.AddHeader(tokens[0], tokens[1]);
+  }
 
   return req;
 }

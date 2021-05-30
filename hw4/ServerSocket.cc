@@ -29,12 +29,13 @@ extern "C" {
 }
 
 namespace hw4 {
-  static void PrintOut(int fd, struct sockaddr *addr, size_t addrlen,
-                    std::string *client_addr,uint16_t *client_port);
-  static void PrintReverseDNS(struct sockaddr *addr, size_t addrlen, 
-                    std::string *client_dns_name);
-  static void PrintServerSide(int client_fd, int sock_family, 
-                    std::string *server_addr,std::string *server_dns_name);
+
+static void ExtractClientInfo(int fd, struct sockaddr *addr, size_t addrlen,
+                  std::string *client_addr,uint16_t *client_port);
+static void ExtractClientDNS(struct sockaddr *addr, size_t addrlen, 
+                  std::string *client_dns_name);
+static void ExtractServerInfo(int client_fd, int sock_family, 
+                  std::string *server_addr,std::string *server_dns_name);
 
 
 ServerSocket::ServerSocket(uint16_t port) {
@@ -163,14 +164,14 @@ bool ServerSocket::Accept(int *accepted_fd,
         return false;
       }
     }
-    PrintOut(client_fd, reinterpret_cast<struct sockaddr *>(&caddr), caddr_len ,client_addr, client_port);
-    PrintReverseDNS(reinterpret_cast<struct sockaddr *>(&caddr), caddr_len, client_dns_name);
-    PrintServerSide(client_fd, sock_family_, server_addr, server_dns_name);
+    ExtractClientInfo(client_fd, reinterpret_cast<struct sockaddr *>(&caddr), caddr_len ,client_addr, client_port);
+    ExtractClientDNS(reinterpret_cast<struct sockaddr *>(&caddr), caddr_len, client_dns_name);
+    ExtractServerInfo(client_fd, sock_family_, server_addr, server_dns_name);
     return true;    
   } 
   
 }
-static void PrintOut(int fd, struct sockaddr *addr, size_t addrlen,
+static void ExtractClientInfo(int fd, struct sockaddr *addr, size_t addrlen,
                     std::string *client_addr,uint16_t *client_port) {
   std::stringstream ss;
   if (addr->sa_family == AF_INET) {
@@ -194,10 +195,10 @@ static void PrintOut(int fd, struct sockaddr *addr, size_t addrlen,
     *client_addr = ss.str();
     *client_port = ntohs(in6->sin6_port);
   } else {
-    std::cout << "In PrintOut's Else statement";
+    std::cout << "In ExtractClientInfo's Else statement";
   }
 }
-static void PrintReverseDNS(struct sockaddr *addr, size_t addrlen, std::string *client_dns_name) {
+static void ExtractClientDNS(struct sockaddr *addr, size_t addrlen, std::string *client_dns_name) {
   char hostname[1024];  // ought to be big enough.
   if (getnameinfo(addr, addrlen, hostname, 1024, nullptr, 0, 0) != 0) {
     sprintf(hostname, "[reverse DNS failed]");
@@ -208,7 +209,7 @@ static void PrintReverseDNS(struct sockaddr *addr, size_t addrlen, std::string *
   }
 }
 
-static void PrintServerSide(int client_fd, int sock_family, std::string *server_addr,
+static void ExtractServerInfo(int client_fd, int sock_family, std::string *server_addr,
                            std::string *server_dns_name) {
   char hname[1024];
   hname[0] = '\0';
