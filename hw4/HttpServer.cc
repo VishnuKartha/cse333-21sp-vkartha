@@ -210,7 +210,11 @@ static HttpResponse ProcessFileRequest(const string &uri,
 
   // STEP 2:
   URLParser parser;
+  std::cout << "ABSJKBDKJSAX "  << std::endl;
+
   parser.Parse(uri);
+  std::cout << "YES "  << std::endl;
+
   string file_name = parser.path();
   const string kReqIdentifier = "/static/";
   file_name = file_name.substr(file_name.find(kReqIdentifier) + 
@@ -218,7 +222,19 @@ static HttpResponse ProcessFileRequest(const string &uri,
   
   FileReader reader(base_dir, file_name);
   string contents;
-  if (reader.ReadFile(&contents)) {
+  std::cout << "ROOT " << base_dir << std::endl;
+  std::cout << "TEST " << file_name << std::endl;
+  std::cout << "ISPATHSAFE " << IsPathSafe(base_dir, base_dir + "/" + file_name) << std::endl;
+
+  if(!IsPathSafe(base_dir, base_dir + "/" + file_name)){
+    // If you couldn't find the file, return an HTTP 404 error.
+    ret.set_protocol("HTTP/1.1");
+    ret.set_response_code(404);
+    ret.set_message("Not Found");
+    ret.AppendToBody("<html><body>Couldn't find file \""
+                    + EscapeHtml(file_name)
+                    + "\"</body></html>");
+  } else if ( reader.ReadFile(&contents)) {
     ret.set_protocol("HTTP/2");
     ret.set_response_code(200);
     ret.set_message("OK");
@@ -274,13 +290,14 @@ static HttpResponse ProcessQueryRequest(const string &uri,
   const auto args = parser.args();
   if (auto it = args.find("terms"); it != args.end()) {
     vector<string> terms;
-    boost::split(terms, it->second, boost::is_any_of("+"), 
+    string escaped_terms = EscapeHtml(it->second);
+    boost::split(terms, escaped_terms, boost::is_any_of("+"), 
                                     boost::token_compress_on);
     hw3::QueryProcessor processor(*indices, false);
     const auto results = processor.ProcessQuery(terms);
 
     string result_count = "<p><br>" + to_string(results.size())
-                          + " results found for <b>" + it->second 
+                          + " results found for <b>" + escaped_terms 
                           + "</b></p>\n";
     ret.AppendToBody(result_count);
     ret.AppendToBody("<ul>");
