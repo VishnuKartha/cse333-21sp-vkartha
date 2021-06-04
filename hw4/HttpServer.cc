@@ -30,6 +30,7 @@ using std::endl;
 using std::list;
 using std::map;
 using std::string;
+using std::to_string;
 using std::stringstream;
 using std::unique_ptr;
 
@@ -60,6 +61,20 @@ static const char *kThreegleStr =
 // static
 const int HttpServer::kNumThreads = 100;
 
+static const char *kDefaultContentType = "text/plain";
+static const std::map<string, string> kContentTypes = {
+  { "css", "text/css" },
+  { "gif", "image/gif" },
+  { "html", "text/html" },
+  { "htm", "text/html" },
+  { "jpg", "image/jpeg" },
+  { "jpeg", "image/jpeg" },
+  { "js", "text/javascript" },
+  { "png", "image/png" },
+  { "txt", "text/plain" },
+  { "xml", "text/xml" }
+};
+
 // This is the function that threads are dispatched into
 // in order to process new client connections.
 static void HttpServer_ThrFn(ThreadPool::Task *t);
@@ -76,6 +91,10 @@ static HttpResponse ProcessFileRequest(const string &uri,
 // Process a query request.
 static HttpResponse ProcessQueryRequest(const string &uri,
                                  const list<string> *indices);
+
+static string GetContentType(const string &uri);
+
+static bool IsWebLink(const string &document_name);
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -133,9 +152,19 @@ static void HttpServer_ThrFn(ThreadPool::Task *t) {
   // creating/destroying the same connection repeatedly.
 
   // STEP 1:
-  bool done = false;
-  while (!done) {
-    done = true;  // you may want to change this value
+  HttpConnection conn(hst->client_fd);
+  while (true) {
+    HttpRequest req;
+    if (!conn.GetNextRequest(&req)) {
+      break;
+    } else if (req.GetHeaderValue("connection") == "close\r\n") {
+      break;
+    }
+
+    HttpResponse res = ProcessRequest(req, hst->base_dir, hst->indices);
+    if (!conn.WriteResponse(res)) {
+      break;
+    }
   }
 }
 
@@ -178,18 +207,32 @@ static HttpResponse ProcessFileRequest(const string &uri,
   //
   // be sure to set the response code, protocol, and message
   // in the HttpResponse as well.
-  string file_name = "";
 
   // STEP 2:
-
-
-  // If you couldn't find the file, return an HTTP 404 error.
-  ret.set_protocol("HTTP/1.1");
-  ret.set_response_code(404);
-  ret.set_message("Not Found");
-  ret.AppendToBody("<html><body>Couldn't find file \""
-                   + EscapeHtml(file_name)
-                   + "\"</body></html>");
+  URLParser parser;
+  parser.Parse(uri);
+  string file_name = parser.path();
+  const string kReqIdentifier = "/static/";
+  file_name = file_name.substr(file_name.find(kReqIdentifier) + 
+                               kReqIdentifier.size());
+  
+  FileReader reader(base_dir, file_name);
+  string contents;
+  if (reader.ReadFile(&contents)) {
+    ret.set_protocol("HTTP/2");
+    ret.set_response_code(200);
+    ret.set_message("OK");
+    ret.set_content_type(GetContentType(file_name));
+    ret.AppendToBody(contents);
+  } else {
+    // If you couldn't find the file, return an HTTP 404 error.
+    ret.set_protocol("HTTP/1.1");
+    ret.set_response_code(404);
+    ret.set_message("Not Found");
+    ret.AppendToBody("<html><body>Couldn't find file \""
+                    + EscapeHtml(file_name)
+                    + "\"</body></html>");
+  }
   return ret;
 }
 
@@ -220,8 +263,60 @@ static HttpResponse ProcessQueryRequest(const string &uri,
   //    in our solution_binaries/http333d.
 
   // STEP 3:
+  ret.set_protocol("HTTP/2");
+  ret.set_response_code(200);
+  ret.set_message("OK");
+  ret.set_content_type("text/html");
+  ret.AppendToBody(string(kThreegleStr));
+
+  URLParser parser;
+  parser.Parse(uri);
+  const auto args = parser.args();
+  if (auto it = args.find("terms"); it != args.end()) {
+    vector<string> terms;
+    boost::split(terms, it->second, boost::is_any_of("+"), 
+                                    boost::token_compress_on);
+    hw3::QueryProcessor processor(*indices, false);
+    const auto results = processor.ProcessQuery(terms);
+
+    string result_count = "<p><br>" + to_string(results.size())
+                          + " results found for <b>" + it->second 
+                          + "</b></p>\n";
+    ret.AppendToBody(result_count);
+    ret.AppendToBody("<ul>");
+
+    for (const auto &res : results) {
+      string li = "<li> <a href=\"";
+      if (!IsWebLink(res.document_name)) {
+        li += "/static/";
+      }
+      li += res.document_name + "\">" 
+                  + res.document_name + "</a> [" + to_string(res.rank) 
+                  + "]<br>\n";
+      ret.AppendToBody(li);
+    }
+    ret.AppendToBody("</ul>\n</body>\n</html>\n");
+  }
 
   return ret;
+}
+
+static string GetContentType(const string &uri) {
+  size_t extension_pos = uri.find_last_of(".");
+  if (extension_pos == string::npos) {
+    return kDefaultContentType;
+  }
+
+  string extension = uri.substr(extension_pos + 1);
+  if (auto it = kContentTypes.find(extension); it != kContentTypes.end()) {
+    return it->second;
+  } else {
+    return kDefaultContentType;
+  }
+}
+
+static bool IsWebLink(const string &document_name) {
+  return document_name.find("http") == 0;
 }
 
 }  // namespace hw4

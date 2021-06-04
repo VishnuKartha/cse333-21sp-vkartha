@@ -19,6 +19,7 @@
 #include <cstdio>
 #include <iostream>
 #include <list>
+#include <filesystem>
 
 #include "./ServerSocket.h"
 #include "./HttpServer.h"
@@ -28,9 +29,13 @@ using std::cout;
 using std::endl;
 using std::list;
 using std::string;
+namespace fs = std::filesystem;
 
 // Print out program usage, and exit() with EXIT_FAILURE.
 static void Usage(char *prog_name);
+
+// Check if the file at path is a readable file.
+bool IsReadable(const fs::path &p);
 
 // Parses the command-line arguments, invokes Usage() on failure.
 // "port" is a return parameter to the port number to listen on,
@@ -83,6 +88,15 @@ static void Usage(char *prog_name) {
   exit(EXIT_FAILURE);
 }
 
+bool IsReadable(const fs::path &p) {
+  // https://en.cppreference.com/w/cpp/filesystem/perms
+  std::error_code ec;
+  auto perms = fs::status(p, ec).permissions();
+  return (perms & fs::perms::owner_read) != fs::perms::none &&
+         (perms & fs::perms::group_read) != fs::perms::none &&
+         (perms & fs::perms::others_read) != fs::perms::none;
+}
+
 static void GetPortAndPath(int argc,
                     char **argv,
                     uint16_t *port,
@@ -96,5 +110,38 @@ static void GetPortAndPath(int argc,
   //      are readable files.
 
   // STEP 1:
+
+  // Check for at least 4 arguments (prog name, port, static files, indices).
+  if (argc < 4) {
+    Usage(argv[0]);
+  }
+
+  // Check that the port number fits in a uint16_t and is four digits.
+  if (sscanf(argv[1], "%hu", port) != 1) {
+    cerr << "Couldn't parse port" << endl;
+    Usage(argv[0]);
+  }
+  if (*port < 1000 || *port > 9999) {
+    cerr << "Expected port to be in the range [1000, 9999]" << endl;
+    Usage(argv[0]);
+  }
+
+  // Check that the given path is a readable directory.
+  if (!fs::is_directory(fs::status(argv[2]))) {
+    cerr << "Couldn't read from the given directory" << endl;
+    Usage(argv[0]);
+  }
+  *path = argv[2];
+
+  // Check that all indices are readable files.
+  for (int arg = 3; arg < argc; arg++) {
+    std::error_code ec;
+    auto path = fs::path(argv[arg]);
+    if (!fs::exists(path) || !IsReadable(path)) {
+      cerr << "Couldn't read from index file '" << argv[arg] << "'" << endl;
+      Usage(argv[0]);
+    }
+    indices->push_back(string(argv[arg]));
+  }
 }
 

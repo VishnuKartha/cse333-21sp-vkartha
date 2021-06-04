@@ -15,7 +15,6 @@
 #include <map>
 #include <string>
 #include <vector>
-#include <iostream>
 
 #include "./HttpRequest.h"
 #include "./HttpUtils.h"
