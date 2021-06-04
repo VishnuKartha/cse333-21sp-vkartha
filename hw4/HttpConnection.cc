@@ -101,12 +101,15 @@ HttpRequest HttpConnection::ParseRequest(const string &request) const {
   // malformed, you may skip that line.
 
   // STEP 2:
+  string trimmed = request;
+  boost::trim(trimmed);
   vector<string> lines;
-  boost::split(lines, request, boost::is_any_of("\r\n"), 
+  boost::split(lines, trimmed, boost::is_any_of("\r\n"), 
                                boost::token_compress_on);
   vector<string> tokens;
   boost::split(tokens, lines[0], boost::is_any_of(" "), 
                                  boost::token_compress_on);
+  boost::trim(tokens[1]);
   req.set_uri(tokens[1]);
 
   for (size_t i = 1; i < lines.size(); i++) {
@@ -116,8 +119,8 @@ HttpRequest HttpConnection::ParseRequest(const string &request) const {
       continue;
     }
     boost::algorithm::to_lower(tokens[0]);
-    boost::algorithm::to_lower(tokens[1]);
     boost::trim(tokens[0]);
+    boost::algorithm::to_lower(tokens[1]);
     boost::trim(tokens[1]);
     req.AddHeader(tokens[0], tokens[1]);
   }

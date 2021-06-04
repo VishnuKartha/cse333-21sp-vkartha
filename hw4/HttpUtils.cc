@@ -53,15 +53,21 @@ bool IsPathSafe(const string &root_dir, const string &test_file) {
   // path of a file.)
 
   // STEP 1
-  char* root_real_path = realpath(root_dir.c_str(), nullptr);
-  char* test_file_real_path = realpath(test_file.c_str(), nullptr);
-  if (!root_real_path||!test_file_real_path) {
+  char* root_expanded = realpath(root_dir.c_str(), nullptr);
+  if (!root_expanded) {
     return false;
   }
-  string root_dir_absolute_path(root_real_path);
-  string test_file_absolute_path(test_file_real_path);
-
-  return test_file_absolute_path.find(root_dir_absolute_path) == 0;
+  char* test_expanded = realpath(test_file.c_str(), nullptr);
+  if (!test_expanded) {
+    free(root_expanded);
+    return false;
+  }
+  string root_absolute(root_expanded);
+  string test_absolute(test_expanded);
+  bool safe = test_absolute.find(root_absolute) == 0;
+  free(root_expanded);
+  free(test_expanded);
+  return safe;
 }
 
 string EscapeHtml(const string &from) {
