@@ -222,13 +222,13 @@ static HttpResponse ProcessFileRequest(const string &uri,
   parser.Parse(uri);
   string file_name = parser.path();
   file_name = file_name.substr(file_name.find(kReqIdentifier) + kIdentifierLen);
-  
+
   // Set up the reader.
   FileReader reader(base_dir, file_name);
   string contents;
 
   // Check that the requested path is safe and try to read the file in if so.
-  if (IsPathSafe(base_dir, base_dir + "/" + file_name) 
+  if (IsPathSafe(base_dir, base_dir + "/" + file_name)
       && reader.ReadFile(&contents)) {
     ret.set_protocol("HTTP/1.1");
     ret.set_response_code(200);
@@ -294,7 +294,7 @@ static HttpResponse ProcessQueryRequest(const string &uri,
     // before doing anything with them.
     vector<string> terms;
     string escaped_terms = EscapeHtml(it->second);
-    boost::split(terms, escaped_terms, boost::is_any_of(" "), 
+    boost::split(terms, escaped_terms, boost::is_any_of(" "),
                                        boost::token_compress_on);
 
     // Build the query processor and perform the query.
@@ -304,7 +304,7 @@ static HttpResponse ProcessQueryRequest(const string &uri,
     // We're ready to create the response. First, add a line
     // showing the number of results.
     string result_count = "<p><br>" + to_string(results.size())
-                          + " results found for <b>" + escaped_terms 
+                          + " results found for <b>" + escaped_terms
                           + "</b></p>\n";
     ret.AppendToBody(result_count);
 

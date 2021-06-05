@@ -54,7 +54,7 @@ bool HttpConnection::GetNextRequest(HttpRequest *request) {
   size_t pos = buffer_.find(kHeaderEnd);
   while (pos == string::npos) {
     char read_buf[kReadLen];
-    int result = WrappedRead(fd_, reinterpret_cast<unsigned char *>(read_buf), 
+    int result = WrappedRead(fd_, reinterpret_cast<unsigned char *>(read_buf),
                              kReadLen);
     if (result == -1) {
       return false;
@@ -113,12 +113,12 @@ HttpRequest HttpConnection::ParseRequest(const string &request) const {
   string trimmed = request;
   boost::trim(trimmed);
   vector<string> lines;
-  boost::split(lines, trimmed, boost::is_any_of("\r\n"), 
+  boost::split(lines, trimmed, boost::is_any_of("\r\n"),
                                boost::token_compress_on);
 
   // Split the first line into tokens.
   vector<string> tokens;
-  boost::split(tokens, lines[0], boost::is_any_of(" "), 
+  boost::split(tokens, lines[0], boost::is_any_of(" "),
                                  boost::token_compress_on);
   boost::trim(tokens[1]);
   req.set_uri(tokens[1]);

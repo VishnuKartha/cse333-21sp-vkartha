@@ -19,7 +19,7 @@
 #include <string.h>      // for memset, strerror()
 #include <iostream>      // for std::cerr, etc.
 #include <sstream>       // for std::sstream
-#include <string>      
+#include <string>
 
 
 #include "./ServerSocket.h"
@@ -34,20 +34,20 @@ namespace hw4 {
 // even 256 is enough. We'll use 512 to be extra safe.
 static constexpr int kDNSLength = 512;
 
-// Gets the IP address and port from a sockaddr struct. On success, 
+// Gets the IP address and port from a sockaddr struct. On success,
 // returns true and sets the return parameters. Returns false on failure.
 static bool RetrieveAddrPort(struct sockaddr *addr, std::string *ret_addr,
                              uint16_t *ret_port);
 
-// Does a reverse DNS lookup on the given addr struct. On success, returns true 
+// Does a reverse DNS lookup on the given addr struct. On success, returns true
 // and sets the dns_name return parameter. Returns false on failure.
-static bool ReverseDNSLookup(struct sockaddr *addr, size_t addrlen, 
+static bool ReverseDNSLookup(struct sockaddr *addr, size_t addrlen,
                              std::string *dns_name);
 
 // Gets the IP address and DNS name of the server. Returns false on failure.
 // On success, returns true and sets the return parameters.
-static bool ExtractServerInfo(int client_fd, int sock_family, 
-                              std::string *ret_addr, 
+static bool ExtractServerInfo(int client_fd, int sock_family,
+                              std::string *ret_addr,
                               std::string *ret_dns_name);
 
 
@@ -186,20 +186,19 @@ bool ServerSocket::Accept(int *accepted_fd,
       *client_addr = "";
       *client_port = 0;
     }
-    if (!ReverseDNSLookup(reinterpret_cast<struct sockaddr *>(&caddr), caddr_len, 
-                          client_dns_name)) {
+    if (!ReverseDNSLookup(reinterpret_cast<struct sockaddr *>(&caddr),
+                          caddr_len, client_dns_name)) {
       // Default to client_addr if this lookup failed.
       *client_dns_name = *client_addr;
     }
-    if (!ExtractServerInfo(client_fd, sock_family_, server_addr, 
+    if (!ExtractServerInfo(client_fd, sock_family_, server_addr,
                            server_dns_name)) {
       *server_addr = "";
       *server_dns_name = *server_addr;
     }
     *accepted_fd = client_fd;
-    return true;    
-  } 
-  
+    return true;
+  }
 }
 
 static bool RetrieveAddrPort(struct sockaddr *addr, std::string *ret_addr,
@@ -230,7 +229,7 @@ static bool RetrieveAddrPort(struct sockaddr *addr, std::string *ret_addr,
   return true;
 }
 
-static bool ReverseDNSLookup(struct sockaddr *addr, size_t addrlen, 
+static bool ReverseDNSLookup(struct sockaddr *addr, size_t addrlen,
                              std::string *dns_name) {
   char hostname[kDNSLength];
   if (getnameinfo(addr, addrlen, hostname, kDNSLength, nullptr, 0, 0) != 0) {
@@ -243,10 +242,9 @@ static bool ReverseDNSLookup(struct sockaddr *addr, size_t addrlen,
   }
 }
 
-static bool ExtractServerInfo(int client_fd, int sock_family, 
-                              std::string *ret_addr, 
+static bool ExtractServerInfo(int client_fd, int sock_family,
+                              std::string *ret_addr,
                               std::string *ret_dns_name) {
-  
   // Determine which sockaddr_* struct to use based on the sock_family.
   struct sockaddr_in srvr;
   struct sockaddr_in6 srvr6;
