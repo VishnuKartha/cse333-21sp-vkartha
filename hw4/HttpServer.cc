@@ -61,6 +61,10 @@ static const char *kThreegleStr =
 // static
 const int HttpServer::kNumThreads = 100;
 
+// Indicates that the client wants a static file.
+static const char *kReqIdentifier = "/static/";
+static constexpr int kIdentifierLen = 8;
+
 static const char *kDefaultContentType = "text/plain";
 static const std::map<string, string> kContentTypes = {
   { "css", "text/css" },
@@ -92,8 +96,11 @@ static HttpResponse ProcessFileRequest(const string &uri,
 static HttpResponse ProcessQueryRequest(const string &uri,
                                  const list<string> *indices);
 
+// Get the MIME type associated with this uri's extension. Defaults
+// to text if the extension isn't recognized.
 static string GetContentType(const string &uri);
 
+// Given a document name, determines if it is a static file or website address.
 static bool IsWebLink(const string &document_name);
 
 
@@ -209,17 +216,18 @@ static HttpResponse ProcessFileRequest(const string &uri,
   // in the HttpResponse as well.
 
   // STEP 2:
+
+  // Grab the file name without the leading "/static/".
   URLParser parser;
   parser.Parse(uri);
-
   string file_name = parser.path();
-  const string kReqIdentifier = "/static/";
-  file_name = file_name.substr(file_name.find(kReqIdentifier) + 
-                               kReqIdentifier.size());
+  file_name = file_name.substr(file_name.find(kReqIdentifier) + kIdentifierLen);
   
+  // Set up the reader.
   FileReader reader(base_dir, file_name);
   string contents;
 
+  // Check that the requested path is safe and try to read the file in if so.
   if (IsPathSafe(base_dir, base_dir + "/" + file_name) 
       && reader.ReadFile(&contents)) {
     ret.set_protocol("HTTP/2");
@@ -266,6 +274,8 @@ static HttpResponse ProcessQueryRequest(const string &uri,
   //    in our solution_binaries/http333d.
 
   // STEP 3:
+
+  // Start setting up the response fields.
   ret.set_protocol("HTTP/2");
   ret.set_response_code(200);
   ret.set_message("OK");
@@ -275,31 +285,47 @@ static HttpResponse ProcessQueryRequest(const string &uri,
   URLParser parser;
   parser.Parse(uri);
   const auto args = parser.args();
+
+  // Only build the rest of the response if the "terms" query is given.
+  // Otherwise, we'll assume that the client didn't want anything other
+  // than the default 333gle page.
   if (auto it = args.find("terms"); it != args.end()) {
+    // Get all of the query terms, making sure to escape everything
+    // before doing anything with them.
     vector<string> terms;
     string escaped_terms = EscapeHtml(it->second);
     boost::split(terms, escaped_terms, boost::is_any_of(" "), 
-                                    boost::token_compress_on);
+                                       boost::token_compress_on);
 
+    // Build the query processor and perform the query.
     hw3::QueryProcessor processor(*indices, false);
     const auto results = processor.ProcessQuery(terms);
 
+    // We're ready to create the response. First, add a line
+    // showing the number of results.
     string result_count = "<p><br>" + to_string(results.size())
                           + " results found for <b>" + escaped_terms 
                           + "</b></p>\n";
     ret.AppendToBody(result_count);
-    ret.AppendToBody("<ul>");
 
+    // Next, add the list of results.
+    ret.AppendToBody("<ul>");
     for (const auto &res : results) {
+      // Append an <li> with a hyperlink, the document name, and result rank.
+
+      // Construct the hyperlink...
       string li = "<li> <a href=\"";
       if (!IsWebLink(res.document_name)) {
+        // Only add /static/ if this is a file in the static directory.
         li += "/static/";
       }
-      li += res.document_name + "\">" 
-                  + res.document_name + "</a> [" + to_string(res.rank) 
-                  + "]<br>\n";
+      li += res.document_name + "\">" + res.document_name + "</a>";
+
+      // ...and rank display.
+      li += "</a> [" + to_string(res.rank) + "]<br>\n";
       ret.AppendToBody(li);
     }
+    // Finally, add some closing tags.
     ret.AppendToBody("</ul>\n</body>\n</html>\n");
   }
 
@@ -309,6 +335,7 @@ static HttpResponse ProcessQueryRequest(const string &uri,
 static string GetContentType(const string &uri) {
   size_t extension_pos = uri.find_last_of(".");
   if (extension_pos == string::npos) {
+    // No extension present.
     return kDefaultContentType;
   }
 
@@ -316,11 +343,14 @@ static string GetContentType(const string &uri) {
   if (auto it = kContentTypes.find(extension); it != kContentTypes.end()) {
     return it->second;
   } else {
+    // Extension wasn't in our list.
     return kDefaultContentType;
   }
 }
 
 static bool IsWebLink(const string &document_name) {
+  // We'll make the assumption that any document name starting with
+  // "http" is a web link.
   return document_name.find("http") == 0;
 }
 
