@@ -293,6 +293,8 @@ static HttpResponse ProcessQueryRequest(const string &uri,
     // before doing anything with them.
     vector<string> terms;
     string escaped_terms = EscapeHtml(it->second);
+    boost::trim(escaped_terms);
+    boost::to_lower(escaped_terms);
     boost::split(terms, escaped_terms, boost::is_any_of(" "),
                                        boost::token_compress_on);
 
@@ -302,9 +304,9 @@ static HttpResponse ProcessQueryRequest(const string &uri,
 
     // We're ready to create the response. First, add a line
     // showing the number of results.
-    string result_count = "<p><br>" + to_string(results.size())
-                          + " results found for <b>" + escaped_terms
-                          + "</b></p>\n";
+    string count = results.empty() ? "No" : to_string(results.size());
+    string result_count = "<p><br>" + count + " results found for "
+                          + "<b>" + escaped_terms + "</b></p>\n";
     ret.AppendToBody(result_count);
 
     // Next, add the list of results.
