@@ -30,12 +30,25 @@ extern "C" {
 
 namespace hw4 {
 
-static void ExtractClientInfo(int fd, struct sockaddr *addr, size_t addrlen,
-                  std::string *client_addr,uint16_t *client_port);
-static void ExtractClientDNS(struct sockaddr *addr, size_t addrlen, 
-                  std::string *client_dns_name);
-static void ExtractServerInfo(int client_fd, int sock_family, 
-                  std::string *server_addr,std::string *server_dns_name);
+// According to https://devblogs.microsoft.com/oldnewthing/20120412-00/?p=7873,
+// even 256 is enough. We'll use 512 to be extra safe.
+static constexpr int kDNSLength = 512;
+
+// Gets the IP address and port from a sockaddr struct. On success, 
+// returns true and sets the return parameters. Returns false on failure.
+static bool RetrieveAddrPort(struct sockaddr *addr, std::string *ret_addr,
+                             uint16_t *ret_port);
+
+// Does a reverse DNS lookup on the given addr struct. On success, returns true 
+// and sets the dns_name return parameter. Returns false on failure.
+static bool ReverseDNSLookup(struct sockaddr *addr, size_t addrlen, 
+                             std::string *dns_name);
+
+// Gets the IP address and DNS name of the server. Returns false on failure.
+// On success, returns true and sets the return parameters.
+static bool ExtractServerInfo(int client_fd, int sock_family, 
+                              std::string *ret_addr, 
+                              std::string *ret_dns_name);
 
 
 ServerSocket::ServerSocket(uint16_t port) {
@@ -58,22 +71,22 @@ bool ServerSocket::BindAndListen(int ai_family, int *listen_fd) {
   // listening socket through the output parameter "listen_fd"
   // and set the ServerSocket data member "listen_sock_fd_"
 
-  // convert port to string
-  std::string port = std::to_string(port_);
-
   // Populate the "hints" addrinfo structure for getaddrinfo().
   struct addrinfo hints;
   memset(&hints, 0, sizeof(struct addrinfo));
   hints.ai_family = ai_family;       // IPv6 (also handles IPv4 clients)
-  hints.ai_socktype = SOCK_STREAM;  // stream
-  hints.ai_flags = AI_PASSIVE;      // use wildcard "in6addr_any" address
-  hints.ai_flags |= AI_V4MAPPED;    // use v4-mapped v6 if no v6 found
-  hints.ai_protocol = IPPROTO_TCP;  // tcp protocol
+  hints.ai_socktype = SOCK_STREAM;   // stream
+  hints.ai_flags = AI_PASSIVE;       // use wildcard "in6addr_any" address
+  hints.ai_flags |= AI_V4MAPPED;     // use v4-mapped v6 if no v6 found
+  hints.ai_protocol = IPPROTO_TCP;   // tcp protocol
   hints.ai_canonname = nullptr;
   hints.ai_addr = nullptr;
   hints.ai_next = nullptr;
 
-  // address structures via the output parameter "result".
+  // Convert port to string.
+  std::string port = std::to_string(port_);
+
+  // Address structures via the output parameter "result".
   struct addrinfo *result;
   int res = getaddrinfo(nullptr, port.c_str(), &hints, &result);
 
@@ -164,92 +177,101 @@ bool ServerSocket::Accept(int *accepted_fd,
         return false;
       }
     }
-    ExtractClientInfo(client_fd, reinterpret_cast<struct sockaddr *>(&caddr), caddr_len ,client_addr, client_port);
-    ExtractClientDNS(reinterpret_cast<struct sockaddr *>(&caddr), caddr_len, client_dns_name);
-    ExtractServerInfo(client_fd, sock_family_, server_addr, server_dns_name);
+
+    // Past this point, we're just retrieving some information and don't
+    // really want to break the connection if anything fails. We will
+    // set return values to default values in the case of failure.
+    if (!RetrieveAddrPort(reinterpret_cast<struct sockaddr *>(&caddr),
+                          client_addr, client_port)) {
+      *client_addr = "";
+      *client_port = 0;
+    }
+    if (!ReverseDNSLookup(reinterpret_cast<struct sockaddr *>(&caddr), caddr_len, 
+                          client_dns_name)) {
+      // Default to client_addr if this lookup failed.
+      *client_dns_name = *client_addr;
+    }
+    if (!ExtractServerInfo(client_fd, sock_family_, server_addr, 
+                           server_dns_name)) {
+      *server_addr = "";
+      *server_dns_name = *server_addr;
+    }
     *accepted_fd = client_fd;
     return true;    
   } 
   
 }
-static void ExtractClientInfo(int fd, struct sockaddr *addr, size_t addrlen,
-                    std::string *client_addr,uint16_t *client_port) {
+
+static bool RetrieveAddrPort(struct sockaddr *addr, std::string *ret_addr,
+                             uint16_t *ret_port) {
   std::stringstream ss;
   if (addr->sa_family == AF_INET) {
-    // Print out the IPV4 address and port
-
+    // Extract the IPV4 address and port.
     char astring[INET_ADDRSTRLEN];
-     
     struct sockaddr_in *in4 = reinterpret_cast<struct sockaddr_in *>(addr);
     inet_ntop(AF_INET, &(in4->sin_addr), astring, INET_ADDRSTRLEN);
     ss << astring;
-    *client_addr = ss.str();
-    *client_port = ntohs(in4->sin_port);
+    *ret_addr = ss.str();
+    *ret_port = ntohs(in4->sin_port);
 
   } else if (addr->sa_family == AF_INET6) {
-    // Print out the IPV6 address and port
-
+    // Extract the IPV6 address and port.
     char astring[INET6_ADDRSTRLEN];
     struct sockaddr_in6 *in6 = reinterpret_cast<struct sockaddr_in6 *>(addr);
     inet_ntop(AF_INET6, &(in6->sin6_addr), astring, INET6_ADDRSTRLEN);
     ss << astring;
-    *client_addr = ss.str();
-    *client_port = ntohs(in6->sin6_port);
+    *ret_addr = ss.str();
+    *ret_port = ntohs(in6->sin6_port);
+
   } else {
-    std::cout << "In ExtractClientInfo's Else statement";
+    // Retrieving info failed.
+    return false;
   }
+  return true;
 }
-static void ExtractClientDNS(struct sockaddr *addr, size_t addrlen, std::string *client_dns_name) {
-  char hostname[1024];  // ought to be big enough.
-  if (getnameinfo(addr, addrlen, hostname, 1024, nullptr, 0, 0) != 0) {
-    sprintf(hostname, "[reverse DNS failed]");
+
+static bool ReverseDNSLookup(struct sockaddr *addr, size_t addrlen, 
+                             std::string *dns_name) {
+  char hostname[kDNSLength];
+  if (getnameinfo(addr, addrlen, hostname, kDNSLength, nullptr, 0, 0) != 0) {
+    return false;
   } else {
     std::stringstream ss;
     ss << hostname;
-    *client_dns_name = ss.str();
+    *dns_name = ss.str();
+    return true;
   }
 }
 
-static void ExtractServerInfo(int client_fd, int sock_family, std::string *server_addr,
-                           std::string *server_dns_name) {
-  char hname[1024];
-  hname[0] = '\0';
-  std::stringstream ss;
+static bool ExtractServerInfo(int client_fd, int sock_family, 
+                              std::string *ret_addr, 
+                              std::string *ret_dns_name) {
+  
+  // Determine which sockaddr_* struct to use based on the sock_family.
+  struct sockaddr_in srvr;
+  struct sockaddr_in6 srvr6;
+  struct sockaddr *addr;
+  socklen_t addr_len;
   if (sock_family == AF_INET) {
-    // The server is using an IPv4 address.
-    struct sockaddr_in srvr;
-    socklen_t srvrlen = sizeof(srvr);
-    char addrbuf[INET_ADDRSTRLEN];
-    getsockname(client_fd, (struct sockaddr *) &srvr, &srvrlen);
-    inet_ntop(AF_INET, &srvr.sin_addr, addrbuf, INET_ADDRSTRLEN);
-    ss << addrbuf;
-    *server_addr = ss.str();
-    ss.clear();
-    ss.str("");
-    // Get the server's dns name, or return it's IP address as
-    // a substitute if the dns lookup fails.
-    getnameinfo((const struct sockaddr *) &srvr,
-                srvrlen, hname, 1024, nullptr, 0, 0);
-    ss << hname;
-    *server_dns_name = ss.str();
+    addr_len = sizeof(srvr);
+    addr = reinterpret_cast<struct sockaddr *>(&srvr);
   } else {
-    // The server is using an IPv6 address.
-    struct sockaddr_in6 srvr;
-    socklen_t srvrlen = sizeof(srvr);
-    char addrbuf[INET6_ADDRSTRLEN];
-    getsockname(client_fd, (struct sockaddr *) &srvr, &srvrlen);
-    inet_ntop(AF_INET6, &srvr.sin6_addr, addrbuf, INET6_ADDRSTRLEN);
-    ss << addrbuf;
-    *server_addr = ss.str();
-    ss.clear();
-    ss.str("");    
-    // Get the server's dns name, or return it's IP address as
-    // a substitute if the dns lookup fails.
-    getnameinfo((const struct sockaddr *) &srvr,
-                srvrlen, hname, 1024, nullptr, 0, 0);
-    ss << hname;
-    *server_dns_name = ss.str();
+    addr_len = sizeof(srvr6);
+    addr = reinterpret_cast<struct sockaddr *>(&srvr6);
   }
+
+  // Get the sockaddr struct for our side of the connection.
+  if (getsockname(client_fd, addr, &addr_len) == -1) {
+    return false;
+  }
+  uint16_t port;
+  RetrieveAddrPort(addr, ret_addr, &port);
+  // Get the server's dns name, or return it's IP address as
+  // a substitute if the dns lookup fails.
+  if (!ReverseDNSLookup(addr, addr_len, ret_dns_name)) {
+    *ret_dns_name = *ret_addr;
+  }
+  return true;
 }
 
 }  // namespace hw4
