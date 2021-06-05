@@ -46,26 +46,33 @@ bool HttpConnection::GetNextRequest(HttpRequest *request) {
   // caller invokes GetNextRequest()!
 
   // STEP 1:
+
+  // Keep reading until either the connection drops or we see kHeaderEnd
+  // somewhere in buffer_. This handles the case in which multiple
+  // headers were read into buffer_; this loop will not repeat if the
+  // header is already present from the last time we read.
   size_t pos = buffer_.find(kHeaderEnd);
   while (pos == string::npos) {
-    unsigned char buf[kReadLen];
-    int result = WrappedRead(fd_, buf, kReadLen);
+    char read_buf[kReadLen];
+    int result = WrappedRead(fd_, reinterpret_cast<unsigned char *>(read_buf), 
+                             kReadLen);
     if (result == -1) {
       return false;
     }
-    for (int i = 0; i < result; i++) {
-      buffer_.push_back(static_cast<char>(buf[i]));
-    }
+    buffer_.append(read_buf, result);
     pos = buffer_.find(kHeaderEnd);
     if (result == 0) {
+      // EOF.
       break;
     }
   }
 
+  // kHeaderEnd still doesn't show up. We failed to get another request.
   if (pos == string::npos) {
     return false;
   }
 
+  // Parse the first request and save the rest of buffer_.
   *request = ParseRequest(buffer_.substr(0, pos + kHeaderEndLen));
   buffer_.erase(0, pos + kHeaderEndLen);
   return true;
@@ -101,21 +108,27 @@ HttpRequest HttpConnection::ParseRequest(const string &request) const {
   // malformed, you may skip that line.
 
   // STEP 2:
+
+  // Split the request into lines.
   string trimmed = request;
   boost::trim(trimmed);
   vector<string> lines;
   boost::split(lines, trimmed, boost::is_any_of("\r\n"), 
                                boost::token_compress_on);
+
+  // Split the first line into tokens.
   vector<string> tokens;
   boost::split(tokens, lines[0], boost::is_any_of(" "), 
                                  boost::token_compress_on);
   boost::trim(tokens[1]);
   req.set_uri(tokens[1]);
 
+  // Process everything else.
   for (size_t i = 1; i < lines.size(); i++) {
     boost::split(tokens, lines[i], boost::is_any_of(": "),
                                    boost::token_compress_on);
     if (tokens.size() != 2) {
+      // Malformed; skip this line.
       continue;
     }
     boost::algorithm::to_lower(tokens[0]);
