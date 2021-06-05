@@ -230,7 +230,7 @@ static HttpResponse ProcessFileRequest(const string &uri,
   // Check that the requested path is safe and try to read the file in if so.
   if (IsPathSafe(base_dir, base_dir + "/" + file_name) 
       && reader.ReadFile(&contents)) {
-    ret.set_protocol("HTTP/2");
+    ret.set_protocol("HTTP/1.1");
     ret.set_response_code(200);
     ret.set_message("OK");
     ret.set_content_type(GetContentType(file_name));
@@ -276,7 +276,7 @@ static HttpResponse ProcessQueryRequest(const string &uri,
   // STEP 3:
 
   // Start setting up the response fields.
-  ret.set_protocol("HTTP/2");
+  ret.set_protocol("HTTP/1.1");
   ret.set_response_code(200);
   ret.set_message("OK");
   ret.set_content_type("text/html");
