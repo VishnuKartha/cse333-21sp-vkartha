@@ -58,7 +58,6 @@ static const char *kThreegleStr =
   "</form>\n"
   "</center><p>\n";
 
-// static
 const int HttpServer::kNumThreads = 100;
 
 // Indicates that the client wants a static file.

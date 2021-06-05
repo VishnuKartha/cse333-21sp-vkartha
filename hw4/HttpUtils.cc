@@ -53,6 +53,8 @@ bool IsPathSafe(const string &root_dir, const string &test_file) {
   // path of a file.)
 
   // STEP 1
+
+  // Get both full paths.
   char* root_expanded = realpath(root_dir.c_str(), nullptr);
   if (!root_expanded) {
     return false;
@@ -64,14 +66,17 @@ bool IsPathSafe(const string &root_dir, const string &test_file) {
   }
   string root_absolute(root_expanded);
   string test_absolute(test_expanded);
+
+  // The test path is safe if the root path is a prefix of it.
   bool safe = test_absolute.find(root_absolute) == 0;
+
+  // Clean up.
   free(root_expanded);
   free(test_expanded);
   return safe;
 }
 
 string EscapeHtml(const string &from) {
-  string ret = from;
   // Read through the passed in string, and replace any unsafe
   // html tokens with the proper escape codes. The characters
   // that need to be escaped in HTML are the same five as those
@@ -81,6 +86,8 @@ string EscapeHtml(const string &from) {
   // looked up online.
 
   // STEP 2
+  string ret = from;
+
   replace_all(ret, "&", "&amp;");
   replace_all(ret, "\"", "&quot;");
   replace_all(ret, "'", "&apos;");
